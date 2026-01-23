@@ -432,6 +432,109 @@
             border-bottom: 1px solid #e2e8f0;
         }
 
+        /* Tab styles */
+        .tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            color: #64748b;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 0.9375rem;
+            font-family: inherit;
+            position: relative;
+            transition: color 0.15s;
+        }
+
+        .tab:hover {
+            color: #0d9488;
+        }
+
+        .tab.active {
+            color: #0d9488;
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #0d9488, #34d399);
+        }
+
+        /* Results table styles */
+        .results-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 0.875rem;
+        }
+
+        .results-table th {
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            padding: 0.75rem 0.5rem;
+            text-align: center;
+            font-weight: 600;
+            color: #334155;
+            border-bottom: 2px solid #e2e8f0;
+            white-space: nowrap;
+        }
+
+        .results-table th:first-child {
+            text-align: left;
+            border-radius: 8px 0 0 0;
+        }
+
+        .results-table th:last-child {
+            border-radius: 0 8px 0 0;
+        }
+
+        .results-table td {
+            padding: 0.5rem;
+            border-bottom: 1px solid #f1f5f9;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .results-table td:first-child {
+            text-align: left;
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .results-table tbody tr:hover {
+            background-color: #f8fafc;
+        }
+
+        .results-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .result-cell {
+            font-weight: 500;
+        }
+
+        .result-cell.solved {
+            color: #059669;
+        }
+
+        .result-cell.failed {
+            color: #dc2626;
+        }
+
+        .result-cell.empty {
+            color: #cbd5e1;
+        }
+
         .stat-box {
             text-align: center;
             padding: 0.75rem;
@@ -536,32 +639,71 @@ https://oec.world/en/games/tradle"></textarea>
                         <p style="color: #6b7280;">No scores yet. Submit your first Tradle result!</p>
                     </div>
                     <div x-show="scores.length > 0">
-                        <table class="leaderboard-table">
-                            <thead>
-                                <tr>
-                                    <th @click="sortBy('rank')">#</th>
-                                    <th @click="sortBy('player')" :class="getSortClass('player')">Player</th>
-                                    <th @click="sortBy('avgScore')" :class="getSortClass('avgScore')">Avg Score</th>
-                                    <th @click="sortBy('totalPoints')" :class="getSortClass('totalPoints')">Points</th>
-                                    <th @click="sortBy('winRate')" :class="getSortClass('winRate')">Win %</th>
-                                    <th @click="sortBy('gamesPlayed')" :class="getSortClass('gamesPlayed')">Games</th>
-                                    <th @click="sortBy('streak')" :class="getSortClass('streak')">Streak</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <template x-for="(entry, index) in leaderboard" :key="entry.player">
-                                    <tr @click="selectedPlayer = entry.player">
-                                        <td class="rank" :class="{'gold': index === 0, 'silver': index === 1, 'bronze': index === 2}" x-text="index + 1"></td>
-                                        <td class="player-name" x-text="entry.player"></td>
-                                        <td class="stat" x-text="entry.avgScore.toFixed(2)"></td>
-                                        <td class="stat" x-text="entry.totalPoints"></td>
-                                        <td class="stat" x-text="entry.winRate.toFixed(0) + '%'"></td>
-                                        <td class="stat" x-text="entry.gamesPlayed"></td>
-                                        <td class="stat" x-text="entry.streak"></td>
+                        <div class="tabs">
+                            <button class="tab" :class="{ active: activeTab === 'standings' }" @click="activeTab = 'standings'">Standings</button>
+                            <button class="tab" :class="{ active: activeTab === 'results' }" @click="activeTab = 'results'">Results</button>
+                        </div>
+
+                        <!-- Standings Tab -->
+                        <div x-show="activeTab === 'standings'">
+                            <table class="leaderboard-table">
+                                <thead>
+                                    <tr>
+                                        <th @click="sortBy('rank')">#</th>
+                                        <th @click="sortBy('player')" :class="getSortClass('player')">Player</th>
+                                        <th @click="sortBy('avgScore')" :class="getSortClass('avgScore')">Avg Score</th>
+                                        <th @click="sortBy('totalPoints')" :class="getSortClass('totalPoints')">Points</th>
+                                        <th @click="sortBy('winRate')" :class="getSortClass('winRate')">Win %</th>
+                                        <th @click="sortBy('gamesPlayed')" :class="getSortClass('gamesPlayed')">Games</th>
+                                        <th @click="sortBy('streak')" :class="getSortClass('streak')">Streak</th>
                                     </tr>
-                                </template>
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    <template x-for="(entry, index) in leaderboard" :key="entry.player">
+                                        <tr @click="selectedPlayer = entry.player">
+                                            <td class="rank" :class="{'gold': index === 0, 'silver': index === 1, 'bronze': index === 2}" x-text="index + 1"></td>
+                                            <td class="player-name" x-text="entry.player"></td>
+                                            <td class="stat" x-text="entry.avgScore.toFixed(2)"></td>
+                                            <td class="stat" x-text="entry.totalPoints"></td>
+                                            <td class="stat" x-text="entry.winRate.toFixed(0) + '%'"></td>
+                                            <td class="stat" x-text="entry.gamesPlayed"></td>
+                                            <td class="stat" x-text="entry.streak"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Results Tab -->
+                        <div x-show="activeTab === 'results'">
+                            <table class="results-table">
+                                <thead>
+                                    <tr>
+                                        <th>Round</th>
+                                        <template x-for="player in allPlayers" :key="player">
+                                            <th x-text="player"></th>
+                                        </template>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="round in roundsTable" :key="round.gameNumber">
+                                        <tr>
+                                            <td x-text="'#' + round.gameNumber"></td>
+                                            <template x-for="player in allPlayers" :key="player">
+                                                <td class="result-cell"
+                                                    :class="{
+                                                        'solved': round.results[player] && round.results[player].solved,
+                                                        'failed': round.results[player] && !round.results[player].solved,
+                                                        'empty': !round.results[player]
+                                                    }"
+                                                    x-text="round.results[player] ? (round.results[player].solved ? round.results[player].score + '/6' : 'X/6') : '-'">
+                                                </td>
+                                            </template>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -624,6 +766,7 @@ https://oec.world/en/games/tradle"></textarea>
                 sortField: 'totalPoints',
                 sortDirection: 'desc',
                 selectedPlayer: null,
+                activeTab: 'standings',
 
                 async init() {
                     // Load player name from cookie
@@ -802,6 +945,34 @@ https://oec.world/en/games/tradle"></textarea>
                     });
 
                     return leaderboardData;
+                },
+
+                get allPlayers() {
+                    const players = new Set();
+                    for (const score of this.scores) {
+                        players.add(score.player || 'Anonymous');
+                    }
+                    return Array.from(players).sort();
+                },
+
+                get roundsTable() {
+                    // Group scores by game number
+                    const rounds = {};
+                    for (const score of this.scores) {
+                        if (!rounds[score.gameNumber]) {
+                            rounds[score.gameNumber] = {
+                                gameNumber: score.gameNumber,
+                                results: {}
+                            };
+                        }
+                        const player = score.player || 'Anonymous';
+                        rounds[score.gameNumber].results[player] = {
+                            score: score.score,
+                            solved: score.solved
+                        };
+                    }
+                    // Sort by game number descending (most recent first)
+                    return Object.values(rounds).sort((a, b) => b.gameNumber - a.gameNumber);
                 },
 
                 sortBy(field) {
