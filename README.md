@@ -14,7 +14,7 @@
    - Win rate (% of games solved)
    - Games played
    - Current streak
- - [ ] Initialise the repo.
+ - [x] Initialise the repo.
 
 
 ## Technology stack
