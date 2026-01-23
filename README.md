@@ -5,8 +5,8 @@
 
 ## Features
  - [x] Allow adding of a tradle score. Which will be pasted in by the user.
- - [x] Store the results somewhere. Using JSONBlob (https://jsonblob.com) - free, simple REST API, no signup required.
- - [x] Only allow users who have a special code are allowed to submit scores. Use JSONBlob ID as the secret - passed via URL parameter (e.g., `?blob=abc123`), then stored in a cookie for future visits.
+ - [x] Store the results somewhere. Using npoint.io (https://npoint.io) - free, permanent storage, simple REST API, no signup required.
+ - [x] Only allow users who have a special code are allowed to submit scores. Use npoint ID as the secret - passed via URL parameter (e.g., `?id=abc123`), then stored in a cookie for future visits.
  - [ ] Make the page look like the IEA.
  - [x] Display a leaderboard with multiple sortable metrics:
    - Average score (lower is better, X/6 counts as 7)

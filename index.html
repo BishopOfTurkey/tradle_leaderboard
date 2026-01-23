@@ -209,13 +209,13 @@
         </div>
 
         <!-- No access state -->
-        <div x-show="!loading && !blobId" class="card">
+        <div x-show="!loading && !dataId" class="card">
             <h2>Access Required</h2>
-            <p style="color: #6b7280;">You need an invite link to access this leaderboard. The link should contain a blob parameter (e.g., <code>?blob=abc123</code>).</p>
+            <p style="color: #6b7280;">You need an invite link to access this leaderboard. The link should contain an id parameter (e.g., <code>?id=abc123</code>).</p>
         </div>
 
         <!-- Main content when authenticated -->
-        <template x-if="!loading && blobId">
+        <template x-if="!loading && dataId">
             <div>
                 <div class="card">
                     <h2>Submit Your Score</h2>
@@ -286,7 +286,7 @@ https://oec.world/en/games/tradle"></textarea>
                 scoreInput: '',
                 message: '',
                 messageType: 'success',
-                blobId: null,
+                dataId: null,
                 scores: [],
                 loading: true,
                 playerName: '',
@@ -298,20 +298,20 @@ https://oec.world/en/games/tradle"></textarea>
                     this.playerName = this.getCookie('tradlePlayerName') || '';
                     // Check URL parameter first
                     const urlParams = new URLSearchParams(window.location.search);
-                    const blobParam = urlParams.get('blob');
+                    const idParam = urlParams.get('id');
 
-                    if (blobParam) {
+                    if (idParam) {
                         // Store in cookie and use it
-                        this.setCookie('tradleBlobId', blobParam, 365);
-                        this.blobId = blobParam;
+                        this.setCookie('tradleDataId', idParam, 365);
+                        this.dataId = idParam;
                         // Clean URL
                         window.history.replaceState({}, document.title, window.location.pathname);
                     } else {
                         // Check cookie
-                        this.blobId = this.getCookie('tradleBlobId');
+                        this.dataId = this.getCookie('tradleDataId');
                     }
 
-                    if (this.blobId) {
+                    if (this.dataId) {
                         await this.loadScores();
                     }
                     this.loading = false;
@@ -333,14 +333,14 @@ https://oec.world/en/games/tradle"></textarea>
 
                 async loadScores() {
                     try {
-                        const response = await fetch(`https://jsonblob.com/api/jsonBlob/${this.blobId}`);
+                        const response = await fetch(`https://api.npoint.io/${this.dataId}`);
                         if (response.ok) {
                             const data = await response.json();
                             this.scores = data.scores || [];
                         } else if (response.status === 404) {
-                            this.message = 'Invalid blob ID. Please check your access link.';
+                            this.message = 'Invalid data ID. Please check your access link.';
                             this.messageType = 'error';
-                            this.blobId = null;
+                            this.dataId = null;
                         }
                     } catch (error) {
                         console.error('Error loading scores:', error);
@@ -351,8 +351,8 @@ https://oec.world/en/games/tradle"></textarea>
 
                 async saveScores() {
                     try {
-                        const response = await fetch(`https://jsonblob.com/api/jsonBlob/${this.blobId}`, {
-                            method: 'PUT',
+                        const response = await fetch(`https://api.npoint.io/${this.dataId}`, {
+                            method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
                             },
@@ -494,8 +494,8 @@ https://oec.world/en/games/tradle"></textarea>
                 },
 
                 async submitScore() {
-                    if (!this.blobId) {
-                        this.message = 'No access. Please use an invite link with a valid blob ID.';
+                    if (!this.dataId) {
+                        this.message = 'No access. Please use an invite link with a valid ID.';
                         this.messageType = 'error';
                         return;
                     }
