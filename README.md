@@ -1,0 +1,55 @@
+
+
+# Tradle Leaderboard
+
+
+## Features
+ - [ ] Allow adding of a tradle score. Which will be pasted in by the user.
+ - [ ] Store the results somewhere. Using JSONBlob (https://jsonblob.com) - free, simple REST API, no signup required.
+ - [ ] Only allow users who have a special code are allowed to submit scores. Use JSONBlob ID as the secret - passed via URL parameter (e.g., `?blob=abc123`), then stored in a cookie for future visits.
+ - [ ] Make the page look like the IEA.
+ - [ ] Display a leaderboard with multiple sortable metrics:
+   - Average score (lower is better, X/6 counts as 7)
+   - Total points (1/6=6pts, 2/6=5pts... 6/6=1pt, X/6=0pts)
+   - Win rate (% of games solved)
+   - Games played
+   - Current streak
+ - [ ] Initialise the repo.
+
+
+## Technology stack
+ - Alpine JS
+ - Use git for version control
+
+
+## Style notes
+ - Clean white background
+ - Sans-serif typography (Inter or system fonts)
+ - Large bold headings, dark gray body text
+ - Accent colors: teal, purple, green (from IEA charts)
+ - Card containers with subtle borders
+ - Generous white space
+ - Minimal, professional, data-focused aesthetic
+
+
+Trade score examples:
+#Tradle #1419 5/6
+🟩⬜⬜⬜⬜
+🟩🟩🟨⬜⬜
+🟩🟩🟩🟩⬜
+🟩🟩🟩🟩🟨
+🟩🟩🟩🟩🟩
+https://oec.world/en/games/tradle
+
+#Tradle #1418 X/6
+🟩⬜⬜⬜⬜
+🟩🟩🟨⬜⬜
+🟩🟩🟩🟩⬜
+🟩🟩🟩🟩🟨
+🟩🟩🟩🟩🟨
+🟩🟩🟩🟩🟨
+
+https://oec.world/en/games/tradle
+#Tradle #1418 1/6
+🟩🟩🟩🟩🟩
+

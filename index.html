@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tradle Leaderboard</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background-color: #ffffff;
+            color: #374151;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 1rem;
+        }
+
+        .accent-teal { color: #0d9488; }
+        .accent-purple { color: #7c3aed; }
+        .accent-green { color: #059669; }
+
+        .btn {
+            background-color: #0d9488;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn:hover {
+            background-color: #0f766e;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.875rem;
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #0d9488;
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+        }
+
+        .message {
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+        }
+
+        .message.success {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .message.error {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" x-data="tradleApp()">
+        <h1>Tradle Leaderboard</h1>
+        <p class="subtitle">Track your Tradle scores and compete with friends</p>
+
+        <div class="card">
+            <h2>Submit Your Score</h2>
+            <p style="margin-bottom: 1rem; color: #6b7280;">Paste your Tradle result below:</p>
+            <textarea
+                x-model="scoreInput"
+                placeholder="#Tradle #1419 5/6
+🟩⬜⬜⬜⬜
+🟩🟩🟨⬜⬜
+🟩🟩🟩🟩⬜
+🟩🟩🟩🟩🟨
+🟩🟩🟩🟩🟩
+https://oec.world/en/games/tradle"></textarea>
+            <div style="margin-top: 1rem;">
+                <button class="btn" @click="submitScore()">Submit Score</button>
+            </div>
+            <div x-show="message" class="message" :class="messageType" x-text="message"></div>
+        </div>
+
+        <div class="card">
+            <h2>Leaderboard</h2>
+            <p style="color: #6b7280;">Coming soon...</p>
+        </div>
+    </div>
+
+    <script>
+        function tradleApp() {
+            return {
+                scoreInput: '',
+                message: '',
+                messageType: 'success',
+
+                parseScore(input) {
+                    const lines = input.trim().split('\n');
+                    const headerMatch = lines[0].match(/#Tradle #(\d+) (\d|X)\/6/);
+
+                    if (!headerMatch) {
+                        return null;
+                    }
+
+                    const gameNumber = parseInt(headerMatch[1]);
+                    const scoreRaw = headerMatch[2];
+                    const score = scoreRaw === 'X' ? 7 : parseInt(scoreRaw);
+                    const solved = scoreRaw !== 'X';
+
+                    return {
+                        gameNumber,
+                        score,
+                        solved,
+                        raw: input.trim(),
+                        timestamp: new Date().toISOString()
+                    };
+                },
+
+                submitScore() {
+                    const parsed = this.parseScore(this.scoreInput);
+
+                    if (!parsed) {
+                        this.message = 'Invalid Tradle score format. Please paste your complete Tradle result.';
+                        this.messageType = 'error';
+                        return;
+                    }
+
+                    // For now, just show success message
+                    // Storage will be implemented with JSONBlob
+                    this.message = `Score recorded: Game #${parsed.gameNumber} - ${parsed.solved ? parsed.score + '/6' : 'X/6'}`;
+                    this.messageType = 'success';
+                    this.scoreInput = '';
+
+                    console.log('Parsed score:', parsed);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
