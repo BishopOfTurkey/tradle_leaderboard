@@ -243,6 +243,7 @@
 
         .leaderboard-table tbody tr:hover {
             background-color: #f8fafc;
+            cursor: pointer;
         }
 
         .leaderboard-table tbody tr:last-child td {
@@ -305,6 +306,149 @@
 
         .footer a:hover {
             text-decoration: underline;
+        }
+
+        /* Player detail modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 1rem;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 16px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 80vh;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+            color: white;
+            padding: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+            max-height: calc(80vh - 80px);
+        }
+
+        .game-result {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .game-result:last-child {
+            margin-bottom: 0;
+        }
+
+        .game-result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .game-number {
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .game-score {
+            font-weight: 700;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+        }
+
+        .game-score.solved {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .game-score.failed {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .game-grid {
+            font-size: 1.25rem;
+            line-height: 1.4;
+            letter-spacing: 0.05em;
+        }
+
+        .game-date {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-top: 0.5rem;
+        }
+
+        .player-stats-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+            padding-bottom: 1.25rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .stat-box {
+            text-align: center;
+            padding: 0.75rem;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+
+        .stat-box .stat-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #0d9488;
+        }
+
+        .stat-box .stat-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 0.25rem;
         }
 
         /* Responsive adjustments */
@@ -406,7 +550,7 @@ https://oec.world/en/games/tradle"></textarea>
                             </thead>
                             <tbody>
                                 <template x-for="(entry, index) in leaderboard" :key="entry.player">
-                                    <tr>
+                                    <tr @click="selectedPlayer = entry.player">
                                         <td class="rank" :class="{'gold': index === 0, 'silver': index === 1, 'bronze': index === 2}" x-text="index + 1"></td>
                                         <td class="player-name" x-text="entry.player"></td>
                                         <td class="stat" x-text="entry.avgScore.toFixed(2)"></td>
@@ -420,6 +564,44 @@ https://oec.world/en/games/tradle"></textarea>
                         </table>
                     </div>
                 </div>
+
+                <!-- Player Detail Modal -->
+                <template x-if="selectedPlayer">
+                    <div class="modal-overlay" @click.self="selectedPlayer = null" @keydown.escape.window="selectedPlayer = null">
+                        <div class="modal" x-data="{ details: getPlayerDetails(selectedPlayer) }">
+                            <div class="modal-header">
+                                <h3 x-text="selectedPlayer"></h3>
+                                <button class="modal-close" @click="selectedPlayer = null">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="player-stats-summary">
+                                    <div class="stat-box">
+                                        <div class="stat-value" x-text="details.avgScore.toFixed(2)"></div>
+                                        <div class="stat-label">Avg Score</div>
+                                    </div>
+                                    <div class="stat-box">
+                                        <div class="stat-value" x-text="details.totalPoints"></div>
+                                        <div class="stat-label">Total Points</div>
+                                    </div>
+                                    <div class="stat-box">
+                                        <div class="stat-value" x-text="details.winRate.toFixed(0) + '%'"></div>
+                                        <div class="stat-label">Win Rate</div>
+                                    </div>
+                                </div>
+                                <template x-for="result in details.results" :key="result.gameNumber">
+                                    <div class="game-result">
+                                        <div class="game-result-header">
+                                            <span class="game-number" x-text="'Game #' + result.gameNumber"></span>
+                                            <span class="game-score" :class="result.solved ? 'solved' : 'failed'" x-text="result.solved ? result.score + '/6' : 'X/6'"></span>
+                                        </div>
+                                        <div class="game-grid" x-text="extractGrid(result.raw)"></div>
+                                        <div class="game-date" x-text="formatDate(result.timestamp)"></div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </template>
             </div>
         </template>
         </div>
@@ -441,6 +623,7 @@ https://oec.world/en/games/tradle"></textarea>
                 playerName: '',
                 sortField: 'totalPoints',
                 sortDirection: 'desc',
+                selectedPlayer: null,
 
                 async init() {
                     // Load player name from cookie
@@ -640,6 +823,35 @@ https://oec.world/en/games/tradle"></textarea>
                 getSortClass(field) {
                     if (this.sortField !== field) return '';
                     return this.sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc';
+                },
+
+                getPlayerDetails(playerName) {
+                    const playerScores = this.scores
+                        .filter(s => s.player === playerName)
+                        .sort((a, b) => b.gameNumber - a.gameNumber);
+
+                    const leaderboardEntry = this.leaderboard.find(e => e.player === playerName);
+
+                    return {
+                        ...leaderboardEntry,
+                        results: playerScores
+                    };
+                },
+
+                extractGrid(raw) {
+                    const lines = raw.split('\n');
+                    const gridLines = lines.filter(line =>
+                        line.includes('🟩') || line.includes('🟨') || line.includes('⬜')
+                    );
+                    return gridLines.join('\n');
+                },
+
+                formatDate(timestamp) {
+                    return new Date(timestamp).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                    });
                 },
 
                 async submitScore() {
