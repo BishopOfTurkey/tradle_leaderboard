@@ -17,7 +17,7 @@
  - [x] Initialise the repo.
  - [x] Add another results table. Each row is a single round. Each column is a players name. Show each players result (e.g. 2/6) in the cells. Make it a new tab under the leaderboard heading.
  - [x] Make the table headers sticky when scrolling
-
+ - [x] Vendor all external assets.
 
 ## Technology stack
  - Alpine JS
