@@ -758,6 +758,9 @@ https://oec.world/en/games/tradle"></textarea>
     </div>
 
     <script>
+        // Backend API base URL - set to your backend URL in production
+        const API_BASE = '';
+
         function tradleApp() {
             return {
                 scoreInput: '',
@@ -812,12 +815,16 @@ https://oec.world/en/games/tradle"></textarea>
 
                 async loadScores() {
                     try {
-                        const response = await fetch(`https://api.npoint.io/${this.dataId}`);
+                        const response = await fetch(`${API_BASE}/api/scores`, {
+                            headers: {
+                                'X-Tenant-Key': this.dataId
+                            }
+                        });
                         if (response.ok) {
                             const data = await response.json();
                             this.scores = data.scores || [];
-                        } else if (response.status === 404) {
-                            this.message = 'Invalid data ID. Please check your access link.';
+                        } else if (response.status === 401) {
+                            this.message = 'Invalid access key. Please check your invite link.';
                             this.messageType = 'error';
                             this.dataId = null;
                         }
@@ -828,49 +835,10 @@ https://oec.world/en/games/tradle"></textarea>
                     }
                 },
 
-                async saveScores() {
-                    try {
-                        const response = await fetch(`https://api.npoint.io/${this.dataId}`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({ scores: this.scores })
-                        });
-                        return response.ok;
-                    } catch (error) {
-                        console.error('Error saving scores:', error);
-                        return false;
-                    }
-                },
-
                 savePlayerName() {
                     if (this.playerName.trim()) {
                         this.setCookie('tradlePlayerName', this.playerName.trim(), 365);
                     }
-                },
-
-                parseScore(input) {
-                    const lines = input.trim().split('\n');
-                    const headerMatch = lines[0].match(/#Tradle #(\d+) (\d|X)\/6/);
-
-                    if (!headerMatch) {
-                        return null;
-                    }
-
-                    const gameNumber = parseInt(headerMatch[1]);
-                    const scoreRaw = headerMatch[2];
-                    const score = scoreRaw === 'X' ? 7 : parseInt(scoreRaw);
-                    const solved = scoreRaw !== 'X';
-
-                    return {
-                        gameNumber,
-                        score,
-                        solved,
-                        raw: input.trim(),
-                        timestamp: new Date().toISOString(),
-                        player: this.playerName.trim()
-                    };
                 },
 
                 get leaderboard() {
@@ -1042,35 +1010,45 @@ https://oec.world/en/games/tradle"></textarea>
                         return;
                     }
 
-                    const parsed = this.parseScore(this.scoreInput);
-
-                    if (!parsed) {
-                        this.message = 'Invalid Tradle score format. Please paste your complete Tradle result.';
+                    if (!this.scoreInput.trim()) {
+                        this.message = 'Please paste your Tradle result.';
                         this.messageType = 'error';
                         return;
                     }
 
-                    // Check for duplicate game number by the same player
-                    const existingIndex = this.scores.findIndex(
-                        s => s.gameNumber === parsed.gameNumber && s.player === parsed.player
-                    );
-                    if (existingIndex !== -1) {
-                        this.message = `You already submitted a score for Game #${parsed.gameNumber}.`;
-                        this.messageType = 'error';
-                        return;
-                    }
+                    try {
+                        const response = await fetch(`${API_BASE}/api/scores`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Tenant-Key': this.dataId
+                            },
+                            body: JSON.stringify({
+                                player: this.playerName.trim(),
+                                score: this.scoreInput.trim()
+                            })
+                        });
 
-                    // Add score and save
-                    this.scores.push(parsed);
-                    const saved = await this.saveScores();
-
-                    if (saved) {
-                        this.message = `Score recorded: Game #${parsed.gameNumber} - ${parsed.solved ? parsed.score + '/6' : 'X/6'}`;
-                        this.messageType = 'success';
-                        this.scoreInput = '';
-                    } else {
-                        // Remove the score we just added since save failed
-                        this.scores.pop();
+                        if (response.ok) {
+                            const newScore = await response.json();
+                            this.scores.push(newScore);
+                            this.message = `Score recorded: Game #${newScore.gameNumber} - ${newScore.solved ? newScore.score + '/6' : 'X/6'}`;
+                            this.messageType = 'success';
+                            this.scoreInput = '';
+                        } else if (response.status === 400) {
+                            const error = await response.json();
+                            this.message = error.error || 'Invalid Tradle score format. Please paste your complete Tradle result.';
+                            this.messageType = 'error';
+                        } else if (response.status === 409) {
+                            const error = await response.json();
+                            this.message = error.error || 'You already submitted a score for this game.';
+                            this.messageType = 'error';
+                        } else {
+                            this.message = 'Failed to save score. Please try again.';
+                            this.messageType = 'error';
+                        }
+                    } catch (error) {
+                        console.error('Error submitting score:', error);
                         this.message = 'Failed to save score. Please try again.';
                         this.messageType = 'error';
                     }

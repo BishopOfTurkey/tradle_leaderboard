@@ -11,3 +11,7 @@ Thumbs.db
 
 # Local config
 .env
+
+# Backend
+*.db
+__pycache__/
