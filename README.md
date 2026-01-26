@@ -23,6 +23,7 @@
  - Alpine JS
  - Python backend (see [BACKEND.md](BACKEND.md))
  - Use git for version control
+ - Use uv for python packaging
 
 
 ## Style notes
