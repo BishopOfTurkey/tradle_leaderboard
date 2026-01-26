@@ -1,0 +1,8 @@
+dbs:
+  - path: /data/tradle.db
+    replicas:
+      - type: s3
+        bucket: $BUCKET_NAME
+        path: tradle.db
+        endpoint: https://fly.storage.tigris.dev
+        region: auto

@@ -254,5 +254,8 @@ def run_server():
     run(app, host=HOST, port=PORT, debug=True)
 
 
+# Initialize database on module load (for production WSGI servers)
+init_db()
+
 if __name__ == '__main__':
     run_server()
