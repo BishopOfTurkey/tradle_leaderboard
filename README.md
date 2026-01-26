@@ -21,6 +21,7 @@
 
 ## Technology stack
  - Alpine JS
+ - Python backend (see [BACKEND.md](BACKEND.md))
  - Use git for version control
 
 
