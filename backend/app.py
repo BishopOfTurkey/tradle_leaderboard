@@ -10,7 +10,7 @@ import sqlite3
 from datetime import datetime
 from functools import wraps
 
-from bottle import Bottle, request, response, run, abort, static_file
+from bottle import Bottle, request, response, run, static_file, HTTPResponse
 
 # Configuration
 DB_PATH = os.environ.get('TRADLE_DB', 'tradle.db')
@@ -112,13 +112,22 @@ def get_tenant_key():
     return key
 
 
+def json_error(status, message):
+    """Return a JSON error response."""
+    return HTTPResponse(
+        body={'error': message},
+        status=status,
+        headers={'Content-Type': 'application/json'}
+    )
+
+
 def require_tenant(func):
     """Decorator to require and inject tenant_id."""
     @wraps(func)
     def wrapper(*args, **kwargs):
         key = get_tenant_key()
         if not key:
-            abort(401, 'Tenant key required (X-Tenant-Key header or ?key= param)')
+            return json_error(401, 'Access key required. Please use an invite link.')
 
         tenant_id = get_or_create_tenant(key)
         return func(tenant_id, *args, **kwargs)
@@ -177,24 +186,24 @@ def submit_score(tenant_id):
     try:
         data = request.json
     except Exception:
-        abort(400, 'Invalid JSON')
+        return json_error(400, 'Invalid request format.')
 
     if not data:
-        abort(400, 'Request body required')
+        return json_error(400, 'No data provided.')
 
     player = data.get('player', '').strip()
     score_text = data.get('score', '').strip()
 
     if not player:
-        abort(400, 'Player name required')
+        return json_error(400, 'Player name is required.')
 
     if not score_text:
-        abort(400, 'Score text required')
+        return json_error(400, 'Please paste your Tradle result.')
 
     # Parse the Tradle score
     parsed = parse_tradle_score(score_text)
     if not parsed:
-        abort(400, 'Invalid Tradle score format. Expected: #Tradle #NNNN X/6')
+        return json_error(400, 'Could not find a valid Tradle score. Make sure to copy the full result including "#Tradle #NNNN X/6".')
 
     round_number, score = parsed
 
@@ -234,7 +243,7 @@ def submit_score(tenant_id):
 
     except sqlite3.IntegrityError:
         conn.close()
-        abort(409, f'Duplicate score: {player} already submitted for round #{round_number}')
+        return json_error(409, f'You already submitted a score for game #{round_number}.')
 
 
 @app.route('/health')

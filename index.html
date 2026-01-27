@@ -1035,21 +1035,25 @@ https://oec.world/en/games/tradle"></textarea>
                             this.message = `Score recorded: Game #${newScore.gameNumber} - ${newScore.solved ? newScore.score + '/6' : 'X/6'}`;
                             this.messageType = 'success';
                             this.scoreInput = '';
-                        } else if (response.status === 400) {
-                            const error = await response.json();
-                            this.message = error.error || 'Invalid Tradle score format. Please paste your complete Tradle result.';
-                            this.messageType = 'error';
-                        } else if (response.status === 409) {
-                            const error = await response.json();
-                            this.message = error.error || 'You already submitted a score for this game.';
-                            this.messageType = 'error';
                         } else {
-                            this.message = 'Failed to save score. Please try again.';
+                            let errorMsg = 'Something went wrong. Please try again.';
+                            try {
+                                const error = await response.json();
+                                errorMsg = error.error || errorMsg;
+                            } catch {
+                                // Response wasn't JSON, use status-based message
+                                if (response.status === 401) {
+                                    errorMsg = 'Session expired. Please refresh the page.';
+                                } else if (response.status === 500) {
+                                    errorMsg = 'Server error. Please try again later.';
+                                }
+                            }
+                            this.message = errorMsg;
                             this.messageType = 'error';
                         }
                     } catch (error) {
                         console.error('Error submitting score:', error);
-                        this.message = 'Failed to save score. Please try again.';
+                        this.message = 'Network error. Please check your connection and try again.';
                         this.messageType = 'error';
                     }
                 }
