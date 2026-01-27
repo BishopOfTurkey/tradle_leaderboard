@@ -4,6 +4,4 @@ __pycache__
 .env
 *.db
 .venv
-vendor/
 *.md
-index.html

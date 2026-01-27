@@ -10,13 +10,13 @@ import sqlite3
 from datetime import datetime
 from functools import wraps
 
-from bottle import Bottle, request, response, run, abort
+from bottle import Bottle, request, response, run, abort, static_file
 
 # Configuration
 DB_PATH = os.environ.get('TRADLE_DB', 'tradle.db')
 HOST = os.environ.get('HOST', '0.0.0.0')
 PORT = int(os.environ.get('PORT', 8080))
-CORS_ORIGIN = os.environ.get('CORS_ORIGIN', '*')
+STATIC_ROOT = os.environ.get('STATIC_ROOT', '/app')
 
 app = Bottle()
 
@@ -125,18 +125,16 @@ def require_tenant(func):
     return wrapper
 
 
-@app.hook('after_request')
-def enable_cors():
-    """Add CORS headers to all responses."""
-    response.headers['Access-Control-Allow-Origin'] = CORS_ORIGIN
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, X-Tenant-Key'
+@app.route('/')
+def serve_index():
+    """Serve the main index.html page."""
+    return static_file('index.html', root=STATIC_ROOT)
 
 
-@app.route('/api/scores', method='OPTIONS')
-def cors_preflight():
-    """Handle CORS preflight requests."""
-    return ''
+@app.route('/vendor/<filepath:path>')
+def serve_vendor(filepath):
+    """Serve vendored static files (JS, CSS, fonts)."""
+    return static_file(filepath, root=os.path.join(STATIC_ROOT, 'vendor'))
 
 
 @app.route('/api/scores', method='GET')
@@ -250,7 +248,7 @@ def run_server():
     init_db()
     print(f'Starting Tradle backend on {HOST}:{PORT}')
     print(f'Database: {DB_PATH}')
-    print(f'CORS Origin: {CORS_ORIGIN}')
+    print(f'Static root: {STATIC_ROOT}')
     run(app, host=HOST, port=PORT, debug=True)
 
 

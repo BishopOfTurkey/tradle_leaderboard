@@ -18,6 +18,10 @@ RUN uv pip install --system .
 # Create data directory
 RUN mkdir -p /data
 
+# Copy static files for frontend
+COPY index.html /app/
+COPY vendor/ /app/vendor/
+
 # Copy config and startup script
 COPY litestream.yml /etc/litestream.yml
 COPY run.sh /app/run.sh

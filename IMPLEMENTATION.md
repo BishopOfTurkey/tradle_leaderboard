@@ -6,7 +6,7 @@
 |-------|------------|---------|
 | Frontend | Alpine.js SPA | Single `index.html`, reactive UI, vendored assets |
 | Backend | Python/Bottle | REST API, SQLite storage, multi-tenant |
-| Hosting | GitHub Pages + Self-hosted | Frontend on GitHub Pages, backend via Gunicorn |
+| Hosting | Fly.io (unified) | Frontend and backend served together via Gunicorn |
 | Auth | Tenant Keys | First-claim system via `X-Tenant-Key` header |
 
 ## Frontend
@@ -79,7 +79,7 @@ tradle-backend  # → run_server()
 | `TRADLE_DB` | SQLite database path | `tradle.db` |
 | `HOST` | Server bind address | `0.0.0.0` |
 | `PORT` | Server port | `8080` |
-| `CORS_ORIGIN` | Allowed CORS origin | `*` |
+| `STATIC_ROOT` | Root directory for static files | `/app` |
 
 ### Git Workflow
 - Rebase workflow
@@ -87,7 +87,7 @@ tradle-backend  # → run_server()
 - Hosted on GitHub
 
 ### Domain
-- `tradle.thoughtholdings.com` (GitHub Pages CNAME)
+- `tradle.fly.dev` (Fly.io)
 
 ## Dependencies
 
@@ -208,12 +208,10 @@ Health check endpoint.
 }
 ```
 
-### CORS Configuration
+### Static File Serving
 
-- Configurable via `CORS_ORIGIN` environment variable
-- Default: `*` (all origins allowed)
-- Headers allowed: `X-Tenant-Key`, `Content-Type`
-- Methods allowed: `GET`, `POST`, `OPTIONS`
+- Frontend served from same origin as API (no CORS needed)
+- Routes: `/` serves `index.html`, `/vendor/*` serves static assets
 
 ## Scoring System
 

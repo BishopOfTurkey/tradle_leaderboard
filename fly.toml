@@ -9,7 +9,6 @@ primary_region = 'syd'
 [build]
 
 [env]
-  CORS_ORIGIN = 'https://tradle.thoughtholdings.com'
   TRADLE_DB = '/data/tradle.db'
 
 [http_service]
