@@ -84,7 +84,7 @@ backend/
 4. Update `leaderboard` getter to include `elo: ratings[player]?.conservativeRating`
 5. Add Elo to `sortBy()` options
 
-### Phase 4: Frontend - Rating Graph
+### Phase 4: Frontend - Rating Graph (COMPLETED)
 
 1. Download D3.js v7 to `vendor/d3.min.js`
 2. Add `<script src="vendor/d3.min.js"></script>` to index.html

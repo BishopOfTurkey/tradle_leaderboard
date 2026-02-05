@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tradle Leaderboard</title>
+    <script src="vendor/d3.min.js"></script>
     <script defer src="vendor/alpine.min.js"></script>
     <link rel="stylesheet" href="vendor/inter.css">
     <style>
@@ -558,6 +559,69 @@
             margin-top: 0.25rem;
         }
 
+        /* Rating graph styles */
+        .rating-graph {
+            margin-top: 1.25rem;
+            padding-top: 1.25rem;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .rating-graph h4 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 0.75rem;
+        }
+
+        .rating-graph svg {
+            width: 100%;
+            height: 200px;
+            overflow: visible;
+        }
+
+        .rating-graph .uncertainty-band {
+            fill: rgba(13, 148, 136, 0.15);
+        }
+
+        .rating-graph .rating-line {
+            fill: none;
+            stroke: #0d9488;
+            stroke-width: 2;
+        }
+
+        .rating-graph .conservative-line {
+            fill: none;
+            stroke: #0f766e;
+            stroke-width: 2.5;
+        }
+
+        .rating-graph .axis text {
+            font-size: 0.625rem;
+            fill: #64748b;
+        }
+
+        .rating-graph .axis path,
+        .rating-graph .axis line {
+            stroke: #e2e8f0;
+        }
+
+        .rating-graph .grid line {
+            stroke: #f1f5f9;
+        }
+
+        .rating-graph-loading {
+            text-align: center;
+            padding: 2rem;
+            color: #64748b;
+        }
+
+        .rating-graph-empty {
+            text-align: center;
+            padding: 1.5rem;
+            color: #94a3b8;
+            font-size: 0.875rem;
+        }
+
         /* Responsive adjustments */
         @media (max-width: 640px) {
             .header {
@@ -715,11 +779,11 @@ https://oec.world/en/games/tradle"></textarea>
 
                 <!-- Player Detail Modal -->
                 <template x-if="selectedPlayer">
-                    <div class="modal-overlay" @click.self="selectedPlayer = null" @keydown.escape.window="selectedPlayer = null">
-                        <div class="modal" x-data="{ details: getPlayerDetails(selectedPlayer) }">
+                    <div class="modal-overlay" @click.self="closeModal()" @keydown.escape.window="closeModal()">
+                        <div class="modal" x-data="{ details: getPlayerDetails(selectedPlayer) }" x-init="loadRatingHistory(selectedPlayer)">
                             <div class="modal-header">
                                 <h3 x-text="selectedPlayer"></h3>
-                                <button class="modal-close" @click="selectedPlayer = null">&times;</button>
+                                <button class="modal-close" @click="closeModal()">&times;</button>
                             </div>
                             <div class="modal-body">
                                 <div class="player-stats-summary">
@@ -736,6 +800,15 @@ https://oec.world/en/games/tradle"></textarea>
                                         <div class="stat-label">Win Rate</div>
                                     </div>
                                 </div>
+
+                                <!-- Rating Graph -->
+                                <div class="rating-graph">
+                                    <h4>Rating History</h4>
+                                    <div x-show="ratingHistoryLoading" class="rating-graph-loading">Loading...</div>
+                                    <div x-show="!ratingHistoryLoading && ratingHistory.length === 0" class="rating-graph-empty">No rating history yet</div>
+                                    <div x-show="!ratingHistoryLoading && ratingHistory.length > 0" id="rating-chart"></div>
+                                </div>
+
                                 <template x-for="result in details.results" :key="result.gameNumber">
                                     <div class="game-result">
                                         <div class="game-result-header">
@@ -777,6 +850,8 @@ https://oec.world/en/games/tradle"></textarea>
                 selectedPlayer: null,
                 activeTab: 'standings',
                 ratings: {},
+                ratingHistory: [],
+                ratingHistoryLoading: false,
 
                 async init() {
                     // Load player name from cookie
@@ -1004,6 +1079,123 @@ https://oec.world/en/games/tradle"></textarea>
                         day: 'numeric',
                         year: 'numeric'
                     });
+                },
+
+                closeModal() {
+                    this.selectedPlayer = null;
+                    this.ratingHistory = [];
+                },
+
+                async loadRatingHistory(player) {
+                    this.ratingHistoryLoading = true;
+                    this.ratingHistory = [];
+                    try {
+                        const response = await fetch(`${API_BASE}/api/ratings/${encodeURIComponent(player)}/history`, {
+                            headers: {
+                                'X-Tenant-Key': this.dataId
+                            }
+                        });
+                        if (response.ok) {
+                            const data = await response.json();
+                            this.ratingHistory = data.history || [];
+                            // Need to wait for DOM to update before rendering chart
+                            await this.$nextTick();
+                            if (this.ratingHistory.length > 0) {
+                                this.renderRatingChart();
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error loading rating history:', error);
+                    }
+                    this.ratingHistoryLoading = false;
+                },
+
+                renderRatingChart() {
+                    const container = document.getElementById('rating-chart');
+                    if (!container || this.ratingHistory.length === 0) return;
+
+                    // Clear any existing chart
+                    container.innerHTML = '';
+
+                    const data = this.ratingHistory;
+                    const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+                    const width = container.clientWidth - margin.left - margin.right;
+                    const height = 200 - margin.top - margin.bottom;
+
+                    const svg = d3.select(container)
+                        .append('svg')
+                        .attr('width', width + margin.left + margin.right)
+                        .attr('height', height + margin.top + margin.bottom)
+                        .append('g')
+                        .attr('transform', `translate(${margin.left},${margin.top})`);
+
+                    // Scales
+                    const x = d3.scaleLinear()
+                        .domain(d3.extent(data, d => d.round))
+                        .range([0, width]);
+
+                    // Calculate y domain based on all rating values including uncertainty bands
+                    const yMin = d3.min(data, d => d.rating - 2 * d.rd);
+                    const yMax = d3.max(data, d => d.rating + 2 * d.rd);
+                    const yPadding = (yMax - yMin) * 0.1;
+
+                    const y = d3.scaleLinear()
+                        .domain([Math.max(0, yMin - yPadding), yMax + yPadding])
+                        .range([height, 0]);
+
+                    // Grid lines
+                    svg.append('g')
+                        .attr('class', 'grid')
+                        .call(d3.axisLeft(y)
+                            .ticks(5)
+                            .tickSize(-width)
+                            .tickFormat('')
+                        );
+
+                    // Uncertainty band (rating ± 2*RD)
+                    const area = d3.area()
+                        .x(d => x(d.round))
+                        .y0(d => y(d.rating - 2 * d.rd))
+                        .y1(d => y(d.rating + 2 * d.rd));
+
+                    svg.append('path')
+                        .datum(data)
+                        .attr('class', 'uncertainty-band')
+                        .attr('d', area);
+
+                    // Rating line (middle)
+                    const ratingLine = d3.line()
+                        .x(d => x(d.round))
+                        .y(d => y(d.rating));
+
+                    svg.append('path')
+                        .datum(data)
+                        .attr('class', 'rating-line')
+                        .attr('d', ratingLine);
+
+                    // Conservative rating line (bold, bottom of band)
+                    const conservativeLine = d3.line()
+                        .x(d => x(d.round))
+                        .y(d => y(d.conservativeRating));
+
+                    svg.append('path')
+                        .datum(data)
+                        .attr('class', 'conservative-line')
+                        .attr('d', conservativeLine);
+
+                    // X axis
+                    svg.append('g')
+                        .attr('class', 'axis')
+                        .attr('transform', `translate(0,${height})`)
+                        .call(d3.axisBottom(x)
+                            .ticks(Math.min(data.length, 6))
+                            .tickFormat(d => '#' + d)
+                        );
+
+                    // Y axis
+                    svg.append('g')
+                        .attr('class', 'axis')
+                        .call(d3.axisLeft(y).ticks(5));
                 },
 
                 async submitScore() {
