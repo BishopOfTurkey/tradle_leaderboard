@@ -11,6 +11,7 @@ dependencies = [
 [project.scripts]
 tradle-backend = "backend.app:run_server"
 tradle-recalculate = "backend.recalculate:main"
+tradle-mockdata = "backend.mockdata:main"
 
 [build-system]
 requires = ["hatchling"]
