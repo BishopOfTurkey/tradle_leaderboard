@@ -10,6 +10,7 @@ dependencies = [
 
 [project.scripts]
 tradle-backend = "backend.app:run_server"
+tradle-recalculate = "backend.recalculate:main"
 
 [build-system]
 requires = ["hatchling"]

@@ -12,6 +12,8 @@ from functools import wraps
 
 from bottle import Bottle, request, response, run, static_file, HTTPResponse
 
+from .ratings import update_ratings_for_round, get_all_ratings, get_rating_history
+
 # Configuration
 DB_PATH = os.environ.get('TRADLE_DB', 'tradle.db')
 HOST = os.environ.get('HOST', '0.0.0.0')
@@ -189,7 +191,6 @@ def get_scores(tenant_id):
     ''', (tenant_id,))
 
     rows = cursor.fetchall()
-    conn.close()
 
     scores = []
     for row in rows:
@@ -203,8 +204,14 @@ def get_scores(tenant_id):
             'timestamp': row['created_at']
         })
 
+    # Get all player ratings
+    ratings_list = get_all_ratings(conn, tenant_id)
+    ratings = {r['player']: r for r in ratings_list}
+
+    conn.close()
+
     response.content_type = 'application/json'
-    return {'scores': scores}
+    return {'scores': scores, 'ratings': ratings}
 
 
 @app.route('/api/scores', method='POST')
@@ -248,6 +255,9 @@ def submit_score(tenant_id):
         score_id = cursor.lastrowid
         conn.commit()
 
+        # Update ratings for this round
+        player_rating = update_ratings_for_round(conn, tenant_id, player, round_number, score)
+
         # Fetch the created score
         cursor.execute('''
             SELECT id, player, round, score, raw_text, created_at
@@ -266,12 +276,37 @@ def submit_score(tenant_id):
             'score': row['score'],
             'solved': row['score'] < 7,
             'raw': row['raw_text'],
-            'timestamp': row['created_at']
+            'timestamp': row['created_at'],
+            'rating': player_rating
         }
 
     except sqlite3.IntegrityError:
         conn.close()
         return json_error(409, f'You already submitted a score for game #{round_number}.')
+
+
+@app.route('/api/ratings', method='GET')
+@require_tenant
+def get_ratings(tenant_id):
+    """Get all player ratings for the authenticated tenant."""
+    conn = get_db()
+    ratings = get_all_ratings(conn, tenant_id)
+    conn.close()
+
+    response.content_type = 'application/json'
+    return {'ratings': ratings}
+
+
+@app.route('/api/ratings/<player>/history', method='GET')
+@require_tenant
+def get_player_rating_history(tenant_id, player):
+    """Get rating history for a specific player."""
+    conn = get_db()
+    history = get_rating_history(conn, tenant_id, player)
+    conn.close()
+
+    response.content_type = 'application/json'
+    return {'player': player, 'history': history}
 
 
 @app.route('/health')

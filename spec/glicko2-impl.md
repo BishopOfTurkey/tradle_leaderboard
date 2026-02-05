@@ -46,7 +46,7 @@ backend/
 
 ## Implementation Phases
 
-### Phase 1: Core Algorithm & Database
+### Phase 1: Core Algorithm & Database (COMPLETED)
 
 1. Add new tables to `init_db()` in `backend/app.py:34-62`
 2. Create `backend/glicko2.py`:
@@ -61,7 +61,7 @@ backend/
    - `calculate_match_results(score, opponent_scores)` - win/loss/draw
    - `update_ratings_for_round(conn, tenant_id, player, round, score)` - main entry point
 
-### Phase 2: Backend Integration
+### Phase 2: Backend Integration (COMPLETED)
 
 1. Modify `POST /api/scores` (`app.py:182-246`):
    - After successful insert, call `update_ratings_for_round()`
