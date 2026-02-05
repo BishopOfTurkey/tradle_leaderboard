@@ -585,6 +585,59 @@
                 padding: 0.75rem 0.5rem;
             }
         }
+
+        /* Player toggle pills */
+        .player-toggles {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .player-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.4rem 0.85rem;
+            border-radius: 9999px;
+            border: 2px solid;              /* border-color set via inline style */
+            background: white;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+            user-select: none;
+        }
+        .player-toggle.active {
+            color: white;
+        }
+        .player-toggle .color-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        /* Chart */
+        .chart-container {
+            margin-top: 1rem;
+            width: 100%;
+        }
+        .chart-container svg {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .svg-axis-label {
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            fill: #64748b;
+        }
+        .svg-axis-title {
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            fill: #334155;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -646,6 +699,7 @@ https://oec.world/en/games/tradle"></textarea>
                         <div class="tabs">
                             <button class="tab" :class="{ active: activeTab === 'standings' }" @click="activeTab = 'standings'">Standings</button>
                             <button class="tab" :class="{ active: activeTab === 'results' }" @click="activeTab = 'results'">Results</button>
+                            <button class="tab" :class="{ active: activeTab === 'rating' }" @click="activeTab = 'rating'">Rating</button>
                         </div>
 
                         <!-- Standings Tab -->
@@ -655,6 +709,7 @@ https://oec.world/en/games/tradle"></textarea>
                                     <tr>
                                         <th @click="sortBy('rank')">#</th>
                                         <th @click="sortBy('player')" :class="getSortClass('player')">Player</th>
+                                        <th @click="sortBy('glickoRating')" :class="getSortClass('glickoRating')">Rating</th>
                                         <th @click="sortBy('avgScore')" :class="getSortClass('avgScore')">Avg Score</th>
                                         <th @click="sortBy('totalPoints')" :class="getSortClass('totalPoints')">Points</th>
                                         <th @click="sortBy('winRate')" :class="getSortClass('winRate')">Win %</th>
@@ -667,6 +722,7 @@ https://oec.world/en/games/tradle"></textarea>
                                         <tr @click="selectedPlayer = entry.player">
                                             <td class="rank" :class="{'gold': index === 0, 'silver': index === 1, 'bronze': index === 2}" x-text="index + 1"></td>
                                             <td class="player-name" x-text="entry.player"></td>
+                                            <td class="stat" x-text="entry.glickoRating"></td>
                                             <td class="stat" x-text="entry.avgScore.toFixed(2)"></td>
                                             <td class="stat" x-text="entry.totalPoints"></td>
                                             <td class="stat" x-text="entry.winRate.toFixed(0) + '%'"></td>
@@ -707,6 +763,28 @@ https://oec.world/en/games/tradle"></textarea>
                                     </template>
                                 </tbody>
                             </table>
+                        </div>
+
+                        <!-- Rating Chart Tab -->
+                        <div x-show="activeTab === 'rating'">
+                            <div class="player-toggles">
+                                <template x-for="player in allPlayers" :key="player">
+                                    <button
+                                        class="player-toggle"
+                                        :class="{ active: chartPlayers[player] !== false }"
+                                        :style="{
+                                            borderColor: playerColor(player),
+                                            background: chartPlayers[player] !== false ? playerColor(player) : 'white',
+                                            color: chartPlayers[player] !== false ? 'white' : playerColor(player)
+                                        }"
+                                        @click="toggleChartPlayer(player)"
+                                    >
+                                        <span class="color-dot" :style="{ background: chartPlayers[player] !== false ? 'white' : playerColor(player) }"></span>
+                                        <span x-text="player"></span>
+                                    </button>
+                                </template>
+                            </div>
+                            <div class="chart-container" x-html="chartSvg"></div>
                         </div>
                     </div>
                 </div>
@@ -761,6 +839,135 @@ https://oec.world/en/games/tradle"></textarea>
         // Backend API base URL - empty for same-origin deployment
         const API_BASE = '';
 
+        // ─── Glicko-2 ────────────────────────────────────────────────────────
+        const G2_TAU     = 0.5;
+        const G2_EPS     = 0.000001;
+        const G2_SCALE   = 173.7178;
+        const G2_MU0     = 0;
+        const G2_PHI0    = 2.0146;       // 350 / 173.7178
+        const G2_SIGMA0  = 0.05;
+        const G2_PALETTE = ['#0d9488','#7c3aed','#059669','#f59e0b','#e11d48','#3b82f6'];
+
+        function g2Color(name, sortedNames) {
+            return G2_PALETTE[sortedNames.indexOf(name) % G2_PALETTE.length];
+        }
+
+        function g2g(phi)          { return 1 / Math.sqrt(1 + 3*phi*phi/(Math.PI*Math.PI)); }
+        function g2E(mu, muj, phij){ return 1 / (1 + Math.exp(-g2g(phij)*(mu - muj))); }
+
+        function g2Update(player, opponents) {
+            // player:    { mu, phi, sigma }
+            // opponents: [{ mu, phi, score }]  score = 1 win / 0.5 draw / 0 loss
+            // Returns new { mu, phi, sigma }
+
+            const { mu, phi, sigma } = player;
+
+            // variance
+            let vInv = 0;
+            for (const o of opponents) { const g=g2g(o.phi), E=g2E(mu,o.mu,o.phi); vInv += g*g*E*(1-E); }
+            const v = 1/vInv;
+
+            // improvement
+            let delta = 0;
+            for (const o of opponents) delta += g2g(o.phi) * (o.score - g2E(mu,o.mu,o.phi));
+            delta *= v;
+
+            // new volatility via Illinois method on f(x)
+            const a  = Math.log(sigma*sigma);
+            const D2 = delta*delta, phi2 = phi*phi;
+            const f  = x => {
+                const ex = Math.exp(x);
+                return ex*(D2-phi2-v-ex)/(2*(phi2+v+ex)**2) - (x-a)/(G2_TAU*G2_TAU);
+            };
+            let A = a, B;
+            if (D2 > phi2+v) { B = Math.log(D2-phi2-v); }
+            else { let k=1; while(f(a-k*G2_TAU)<0) k++; B = a-k*G2_TAU; }
+            let fA=f(A), fB=f(B);
+            while (Math.abs(B-A) > G2_EPS) {
+                const C=A+(A-B)*fA/(fB-fA), fC=f(C);
+                if (fC*fB<0) { A=B; fA=fB; } else { fA/=2; }
+                B=C; fB=fC;
+            }
+            const newSigma = Math.exp(A/2);
+
+            // new deviation
+            const phiStar = Math.sqrt(phi2 + newSigma*newSigma);
+            const newPhi  = 1 / Math.sqrt(1/(phiStar*phiStar) + 1/v);
+
+            // new rating
+            let muSum = 0;
+            for (const o of opponents) muSum += g2g(o.phi)*(o.score - g2E(mu,o.mu,o.phi));
+            const newMu = mu + newPhi*newPhi*muSum;
+
+            return { mu: newMu, phi: newPhi, sigma: newSigma };
+        }
+
+        function g2ComputeAll(scores) {
+            // scores: raw this.scores array [{player, gameNumber, score (1-6 or 7), ...}]
+            // Returns { ratings: {name: {conservativeRating}}, history: [{round, player, rating, lower, upper}] }
+
+            const playerSet = new Set();
+            const roundMap  = {};   // gameNumber → [{player, score}]
+            for (const s of scores) {
+                const p = s.player || 'Anonymous';
+                playerSet.add(p);
+                (roundMap[s.gameNumber] ??= []).push({ player: p, score: s.score });
+            }
+
+            const roundNums = Object.keys(roundMap).map(Number).sort((a,b)=>a-b);
+
+            // init
+            const state = {};
+            for (const p of playerSet) state[p] = { mu: G2_MU0, phi: G2_PHI0, sigma: G2_SIGMA0 };
+
+            const history = [];
+
+            for (const rn of roundNums) {
+                // snapshot before any updates this round
+                const snap = {};
+                for (const p of playerSet) snap[p] = { ...state[p] };
+
+                const inRound = new Set(roundMap[rn].map(e=>e.player));
+                const scoreOf = Object.fromEntries(roundMap[rn].map(e=>[e.player, e.score]));
+
+                for (const p of playerSet) {
+                    if (!inRound.has(p)) {
+                        // absent: age deviation only
+                        state[p] = { ...snap[p], phi: Math.sqrt(snap[p].phi**2 + snap[p].sigma**2) };
+                    } else {
+                        // build opponents from snapshot
+                        const opps = [];
+                        for (const q of inRound) {
+                            if (q === p) continue;
+                            const myS = scoreOf[p], thS = scoreOf[q];
+                            opps.push({ mu: snap[q].mu, phi: snap[q].phi, score: myS<thS ? 1 : myS>thS ? 0 : 0.5 });
+                        }
+                        state[p] = opps.length
+                            ? g2Update(snap[p], opps)
+                            : { ...snap[p], phi: Math.sqrt(snap[p].phi**2 + snap[p].sigma**2) };
+                    }
+                }
+
+                // capture history
+                for (const p of playerSet) {
+                    const r  = state[p].mu * G2_SCALE + 1500;
+                    const rd = state[p].phi * G2_SCALE;
+                    history.push({ round: rn, player: p, rating: r, lower: r-2*rd, upper: r+2*rd });
+                }
+            }
+
+            // final ratings
+            const ratings = {};
+            for (const p of playerSet) {
+                const r  = state[p].mu * G2_SCALE + 1500;
+                const rd = state[p].phi * G2_SCALE;
+                ratings[p] = { conservativeRating: Math.round(r - 2*rd) };
+            }
+
+            return { ratings, history };
+        }
+        // ─── end Glicko-2 ────────────────────────────────────────────────────
+
         function tradleApp() {
             return {
                 scoreInput: '',
@@ -770,10 +977,11 @@ https://oec.world/en/games/tradle"></textarea>
                 scores: [],
                 loading: true,
                 playerName: '',
-                sortField: 'totalPoints',
+                sortField: 'glickoRating',
                 sortDirection: 'desc',
                 selectedPlayer: null,
                 activeTab: 'standings',
+                chartPlayers: {},
 
                 async init() {
                     // Load player name from cookie
@@ -886,6 +1094,7 @@ https://oec.world/en/games/tradle"></textarea>
 
                         return {
                             player: stats.player,
+                            glickoRating: (this.glickoData.ratings[stats.player] || {}).conservativeRating ?? 1500,
                             avgScore,
                             totalPoints: stats.totalPoints,
                             winRate,
@@ -947,6 +1156,75 @@ https://oec.world/en/games/tradle"></textarea>
                     return Object.values(rounds).sort((a, b) => b.gameNumber - a.gameNumber);
                 },
 
+                get glickoData() {
+                    if (this.scores.length === 0) return { ratings: {}, history: [] };
+                    return g2ComputeAll(this.scores);
+                },
+
+                get chartSvg() {
+                    const history = this.glickoData.history;
+                    if (!history.length) return '<p style="color:#94a3b8;font-size:0.875rem;">No rating data yet.</p>';
+                    const visible = this.allPlayers.filter(p => this.chartPlayers[p] !== false);
+                    if (!visible.length) return '<p style="color:#94a3b8;font-size:0.875rem;">No players selected.</p>';
+
+                    const W=800, H=420, pL=52, pR=20, pT=20, pB=40, plotW=W-pL-pR, plotH=H-pT-pB;
+                    const vh = history.filter(d => visible.includes(d.player));
+                    const rounds = [...new Set(vh.map(d=>d.round))].sort((a,b)=>a-b);
+                    const minR=rounds[0], maxR=rounds[rounds.length-1];
+
+                    let yMin=Infinity, yMax=-Infinity;
+                    for (const d of vh) { if(d.lower<yMin)yMin=d.lower; if(d.upper>yMax)yMax=d.upper; }
+                    const yPad=(yMax-yMin||100)*0.1; yMin-=yPad; yMax+=yPad;
+
+                    const xS = r => pL + (rounds.length>1 ? (r-minR)/(maxR-minR) : 0.5)*plotW;
+                    const yS = v => pT + (1-(v-yMin)/(yMax-yMin))*plotH;
+
+                    // Y ticks
+                    const range=yMax-yMin;
+                    const tickI = range<200?50 : range<400?100 : 200;
+                    const yTicks=[];
+                    for (let v=Math.ceil(yMin/tickI)*tickI; v<=yMax; v+=tickI) yTicks.push(v);
+
+                    // X ticks: max ~8 labels
+                    const step = rounds.length>40 ? Math.ceil(rounds.length/8) : rounds.length>20?5 : rounds.length>10?2 : 1;
+                    const xTicks = rounds.filter((_,i)=> i%step===0 || i===rounds.length-1);
+
+                    let s = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+
+                    // grid
+                    for (const v of yTicks) s+=`<line x1="${pL}" y1="${yS(v)}" x2="${W-pR}" y2="${yS(v)}" stroke="#e2e8f0" stroke-width="1"/>`;
+                    // y labels
+                    for (const v of yTicks) s+=`<text x="${pL-6}" y="${yS(v)+4}" text-anchor="end" class="svg-axis-label">${Math.round(v)}</text>`;
+                    // y title
+                    s+=`<text x="14" y="${pT+plotH/2}" text-anchor="middle" class="svg-axis-title" transform="rotate(-90 14 ${pT+plotH/2})">Rating</text>`;
+                    // x labels
+                    for (const r of xTicks) s+=`<text x="${xS(r)}" y="${H-pB+18}" text-anchor="middle" class="svg-axis-label">#${r}</text>`;
+                    // x title
+                    s+=`<text x="${pL+plotW/2}" y="${H-4}" text-anchor="middle" class="svg-axis-title">Round</text>`;
+                    // axes
+                    s+=`<line x1="${pL}" y1="${pT}" x2="${pL}" y2="${H-pB}" stroke="#cbd5e1" stroke-width="1.5"/>`;
+                    s+=`<line x1="${pL}" y1="${H-pB}" x2="${W-pR}" y2="${H-pB}" stroke="#cbd5e1" stroke-width="1.5"/>`;
+
+                    // per-player bands + bottom lines
+                    for (const player of visible) {
+                        const color = this.playerColor(player);
+                        const pd = vh.filter(d=>d.player===player).sort((a,b)=>a.round-b.round);
+                        if (!pd.length) continue;
+
+                        // band polygon: lower L→R, then upper R→L
+                        const lPts = pd.map(d=>`${xS(d.round)},${yS(d.lower)}`);
+                        const uPts = [...pd].reverse().map(d=>`${xS(d.round)},${yS(d.upper)}`);
+                        s+=`<polygon points="${lPts.join(' ')} ${uPts.join(' ')}" fill="${color}" fill-opacity="0.12"/>`;
+
+                        // bottom edge (conservative rating) — the highlighted solid line
+                        const lPath = pd.map((d,i)=>(i?'L':'M')+xS(d.round)+','+yS(d.lower)).join(' ');
+                        s+=`<path d="${lPath}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+                    }
+
+                    s+='</svg>';
+                    return s;
+                },
+
                 sortBy(field) {
                     if (this.sortField === field) {
                         this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
@@ -966,6 +1244,14 @@ https://oec.world/en/games/tradle"></textarea>
                 getSortClass(field) {
                     if (this.sortField !== field) return '';
                     return this.sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc';
+                },
+
+                playerColor(name) {
+                    return g2Color(name, this.allPlayers);
+                },
+
+                toggleChartPlayer(name) {
+                    this.chartPlayers[name] = this.chartPlayers[name] === false ? undefined : false;
                 },
 
                 getPlayerDetails(playerName) {
