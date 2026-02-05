@@ -97,7 +97,7 @@ backend/
    - Bold line: conservative rating (rating - 2×RD)
 6. Add CSS for `.rating-graph` container
 
-### Phase 5: Testing & Documentation
+### Phase 5: Testing & Documentation (COMPLETED)
 
 1. Run recalculate script on existing data
 2. Test all API endpoints

@@ -37,7 +37,31 @@ All endpoints require a valid tenant key.
 GET /api/scores
 ```
 
-Returns all scores for the authenticated tenant.
+Returns all scores and player ratings for the authenticated tenant.
+
+**Response:**
+```json
+{
+  "scores": [
+    {
+      "id": 1,
+      "player": "Alice",
+      "round": 1419,
+      "score": 3,
+      "raw_text": "#Tradle #1419 3/6\n...",
+      "created_at": "2024-01-15T10:30:00"
+    }
+  ],
+  "ratings": {
+    "Alice": {
+      "rating": 1523.4,
+      "rd": 45.2,
+      "volatility": 0.058,
+      "conservativeRating": 1433
+    }
+  }
+}
+```
 
 ### Submit Score
 
@@ -48,6 +72,60 @@ POST /api/scores
 Submit a new Tradle score. Request body should include:
 - `player` - player name (required)
 - `score` - the pasted Tradle result text (required)
+
+On success, player ratings are automatically updated using Glicko-2.
+
+### Get Ratings
+
+```
+GET /api/ratings
+```
+
+Returns current ratings for all players, sorted by conservative rating (descending).
+
+**Response:**
+```json
+{
+  "ratings": [
+    {
+      "player": "Alice",
+      "rating": 1523.4,
+      "rd": 45.2,
+      "volatility": 0.058,
+      "conservativeRating": 1433
+    }
+  ]
+}
+```
+
+### Get Rating History
+
+```
+GET /api/ratings/<player>/history
+```
+
+Returns rating history for a specific player (for graphing).
+
+**Response:**
+```json
+{
+  "player": "Alice",
+  "history": [
+    {
+      "round": 1400,
+      "rating": 1500.0,
+      "rd": 320.0,
+      "conservativeRating": 860
+    },
+    {
+      "round": 1401,
+      "rating": 1534.2,
+      "rd": 290.5,
+      "conservativeRating": 953
+    }
+  ]
+}
+```
 
 ## Data Validation
 
@@ -78,4 +156,46 @@ CREATE TABLE scores (
     FOREIGN KEY (tenant_id) REFERENCES tenants(id),
     UNIQUE (tenant_id, player, round)
 );
+
+CREATE TABLE player_ratings (
+    tenant_id INTEGER NOT NULL,
+    player TEXT NOT NULL,
+    rating REAL DEFAULT 1500.0,
+    rd REAL DEFAULT 350.0,
+    volatility REAL DEFAULT 0.06,
+    last_played_at TIMESTAMP,
+    PRIMARY KEY (tenant_id, player),
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+);
+
+CREATE TABLE rating_history (
+    id INTEGER PRIMARY KEY,
+    tenant_id INTEGER NOT NULL,
+    player TEXT NOT NULL,
+    round INTEGER NOT NULL,
+    rating REAL NOT NULL,
+    rd REAL NOT NULL,
+    conservative_rating REAL NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (tenant_id, player, round),
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+);
+```
+
+## Rating System
+
+The backend implements a Glicko-2 rating system for player rankings:
+
+- **Rating**: Skill estimate (default 1500)
+- **RD (Rating Deviation)**: Uncertainty (50-350, default 350)
+- **Volatility**: Player consistency measure (default 0.06)
+- **Conservative Rating**: `rating - 2×RD` (displayed Elo)
+
+Players compete pairwise within each round - lower Tradle score = win.
+
+### CLI Tools
+
+```bash
+# Recalculate all ratings from historical data
+uv run tradle-recalculate [--db PATH]
 ```
