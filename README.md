@@ -31,7 +31,7 @@ A web app for tracking [Tradle](https://oec.world/en/games/tradle) scores among 
 - uv for Python package management
 - Git for version control
 
-See [BACKEND.md](BACKEND.md) for API details.
+See [spec/BACKEND.md](spec/BACKEND.md) for API details.
 
 ## Running Locally
 
