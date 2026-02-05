@@ -58,6 +58,34 @@ def init_db():
         )
     ''')
 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS player_ratings (
+            tenant_id INTEGER NOT NULL,
+            player TEXT NOT NULL,
+            rating REAL DEFAULT 1500.0,
+            rd REAL DEFAULT 350.0,
+            volatility REAL DEFAULT 0.06,
+            last_played_at TIMESTAMP,
+            PRIMARY KEY (tenant_id, player),
+            FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS rating_history (
+            id INTEGER PRIMARY KEY,
+            tenant_id INTEGER NOT NULL,
+            player TEXT NOT NULL,
+            round INTEGER NOT NULL,
+            rating REAL NOT NULL,
+            rd REAL NOT NULL,
+            conservative_rating REAL NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (tenant_id, player, round),
+            FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
