@@ -13,6 +13,7 @@ from functools import wraps
 from bottle import Bottle, request, response, run, static_file, HTTPResponse
 
 from .ratings import update_ratings_for_round, get_all_ratings, get_rating_history, get_all_rating_histories
+from .recalculate import recalculate_ratings
 
 # Configuration
 DB_PATH = os.environ.get('TRADLE_DB', 'tradle.db')
@@ -319,6 +320,14 @@ def get_all_players_rating_history(tenant_id):
 
     response.content_type = 'application/json'
     return {'histories': histories}
+
+
+@app.route('/api/ratings/recalculate', method='POST')
+def recalculate_all_ratings():
+    """Recalculate all ratings from historical score data."""
+    recalculate_ratings(DB_PATH)
+    response.content_type = 'application/json'
+    return {'status': 'ok', 'message': 'Ratings recalculated'}
 
 
 @app.route('/health')
