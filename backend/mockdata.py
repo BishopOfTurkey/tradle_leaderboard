@@ -7,13 +7,13 @@ DEFAULT_PLAYERS = ['alice', 'bob', 'charlie', 'diana', 'eddie', 'fiona', 'george
 
 # Score distribution: (score, probability)
 SCORE_DISTRIBUTION = [
-    (1, 0.02),   # 2% - lucky first guess
-    (2, 0.08),   # 8% - very good
-    (3, 0.25),   # 25% - good
-    (4, 0.35),   # 35% - most common
+    (1, 0.10),   # 2% - lucky first guess
+    (2, 0.05),   # 8% - very good
+    (3, 0.05),   # 25% - good
+    (4, 0.30),   # 35% - most common
     (5, 0.20),   # 20% - below average
-    (6, 0.08),   # 8% - close call
-    (7, 0.02),   # 2% - failure (X/6)
+    (6, 0.20),   # 10% - close call
+    (7, 0.15),   # 15% - failure (X/6)
 ]
 
 PARTICIPATION_RATE = 0.80  # 80% chance each player plays each round
