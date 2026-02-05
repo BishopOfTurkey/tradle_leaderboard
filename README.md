@@ -1,42 +1,70 @@
-
-
 # Tradle Leaderboard
 
+A web app for tracking [Tradle](https://oec.world/en/games/tradle) scores among friends.
 
 ## Features
- - [x] Allow adding of a tradle score. Which will be pasted in by the user.
- - [x] Store the results somewhere. Using npoint.io (https://npoint.io) - free, permanent storage, simple REST API, no signup required.
- - [x] Only allow users who have a special code are allowed to submit scores. Use npoint ID as the secret - passed via URL parameter (e.g., `?id=abc123`), then stored in a cookie for future visits.
- - [x] Make the page look like the IEA.
- - [x] Display a leaderboard with multiple sortable metrics:
-   - Average score (lower is better, X/6 counts as 7)
-   - Total points (1/6=6pts, 2/6=5pts... 6/6=1pt, X/6=0pts)
-   - Win rate (% of games solved)
-   - Games played
-   - Current streak
- - [x] Initialise the repo.
- - [x] Add another results table. Each row is a single round. Each column is a players name. Show each players result (e.g. 2/6) in the cells. Make it a new tab under the leaderboard heading.
- - [x] Make the table headers sticky when scrolling
- - [x] Vendor all external assets.
 
-## Technology stack
- - Alpine JS
- - Python backend (see [BACKEND.md](BACKEND.md))
- - Use git for version control
- - Use uv for python packaging
+- **Score submission** - Paste your Tradle result to submit scores
+- **Multi-tenant** - Each group gets their own leaderboard via unique access key
+- **Leaderboard tabs**:
+  - **Standings** - Sortable metrics: average score, total points, win rate, games played, streak
+  - **Results** - Per-round breakdown showing each player's score
+- **Player details** - Click a player to see their game history
 
+## Technology Stack
 
-## Style notes
- - Clean white background
- - Sans-serif typography (Inter or system fonts)
- - Large bold headings, dark gray body text
- - Accent colors: teal, purple, green (from IEA charts)
- - Card containers with subtle borders
- - Generous white space
- - Minimal, professional, data-focused aesthetic
+**Frontend:**
+- Alpine.js (reactive UI)
+- Vendored assets (Inter font, Alpine.js)
 
+**Backend:**
+- Python 3.13+ with Bottle framework
+- SQLite database with multi-tenant support
+- Gunicorn (production server)
 
-Trade score examples:
+**Infrastructure:**
+- Fly.io deployment
+- Docker containerization
+- Litestream for SQLite replication to Tigris (S3-compatible)
+
+**Tooling:**
+- uv for Python package management
+- Git for version control
+
+See [BACKEND.md](BACKEND.md) for API details.
+
+## Running Locally
+
+```bash
+# Install dependencies
+uv sync
+
+# Run the backend (serves frontend too)
+uv run tradle-backend
+```
+
+The app will be available at `http://localhost:8080?key=YOUR_KEY`
+
+## Authentication
+
+Access is controlled via tenant keys:
+- Pass key via URL: `?key=abc123` or `?id=abc123`
+- Or via header: `X-Tenant-Key: abc123`
+- Key is stored in a cookie for future visits
+- First use of a key creates a new tenant group
+
+## Style
+
+- Clean white background
+- Sans-serif typography (Inter)
+- Accent colors: teal, purple, green
+- Card containers with subtle borders
+- Minimal, data-focused aesthetic
+
+## Score Format
+
+Tradle results look like:
+```
 #Tradle #1419 5/6
 🟩⬜⬜⬜⬜
 🟩🟩🟨⬜⬜
@@ -44,16 +72,8 @@ Trade score examples:
 🟩🟩🟩🟩🟨
 🟩🟩🟩🟩🟩
 https://oec.world/en/games/tradle
+```
 
-#Tradle #1418 X/6
-🟩⬜⬜⬜⬜
-🟩🟩🟨⬜⬜
-🟩🟩🟩🟩⬜
-🟩🟩🟩🟩🟨
-🟩🟩🟩🟩🟨
-🟩🟩🟩🟩🟨
-
-https://oec.world/en/games/tradle
-#Tradle #1418 1/6
-🟩🟩🟩🟩🟩
-
+- `5/6` = solved in 5 guesses
+- `X/6` = failed (counts as 7 for calculations)
+- Points: 1/6=6pts, 2/6=5pts, ..., 6/6=1pt, X/6=0pts
