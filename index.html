@@ -622,6 +622,67 @@
             font-size: 0.875rem;
         }
 
+        /* All ratings chart styles */
+        .all-ratings-chart {
+            width: 100%;
+            height: 350px;
+            margin-bottom: 1rem;
+        }
+
+        .all-ratings-chart svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .all-ratings-chart .player-line {
+            fill: none;
+            stroke-width: 2;
+        }
+
+        .all-ratings-chart .axis text {
+            font-size: 0.75rem;
+            fill: #64748b;
+        }
+
+        .all-ratings-chart .axis path,
+        .all-ratings-chart .axis line {
+            stroke: #e2e8f0;
+        }
+
+        .all-ratings-chart .grid line {
+            stroke: #f1f5f9;
+        }
+
+        .ratings-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            justify-content: center;
+            padding: 0.5rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: #334155;
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            transition: background-color 0.15s;
+        }
+
+        .legend-item:hover {
+            background-color: #f1f5f9;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 3px;
+            border-radius: 2px;
+        }
+
         /* Responsive adjustments */
         @media (max-width: 640px) {
             .header {
@@ -710,6 +771,7 @@ https://oec.world/en/games/tradle"></textarea>
                         <div class="tabs">
                             <button class="tab" :class="{ active: activeTab === 'standings' }" @click="activeTab = 'standings'">Standings</button>
                             <button class="tab" :class="{ active: activeTab === 'results' }" @click="activeTab = 'results'">Results</button>
+                            <button class="tab" :class="{ active: activeTab === 'ratings' }" @click="showRatingsTab()">Ratings</button>
                         </div>
 
                         <!-- Standings Tab -->
@@ -773,6 +835,16 @@ https://oec.world/en/games/tradle"></textarea>
                                     </template>
                                 </tbody>
                             </table>
+                        </div>
+
+                        <!-- Ratings Tab -->
+                        <div x-show="activeTab === 'ratings'">
+                            <div x-show="allRatingsLoading" class="rating-graph-loading">Loading rating histories...</div>
+                            <div x-show="!allRatingsLoading && Object.keys(allRatingHistories).length === 0" class="rating-graph-empty">No rating history available yet</div>
+                            <div x-show="!allRatingsLoading && Object.keys(allRatingHistories).length > 0">
+                                <div id="all-ratings-chart" class="all-ratings-chart"></div>
+                                <div class="ratings-legend" id="ratings-legend"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -845,13 +917,15 @@ https://oec.world/en/games/tradle"></textarea>
                 scores: [],
                 loading: true,
                 playerName: '',
-                sortField: 'totalPoints',
+                sortField: 'elo',
                 sortDirection: 'desc',
                 selectedPlayer: null,
                 activeTab: 'standings',
                 ratings: {},
                 ratingHistory: [],
                 ratingHistoryLoading: false,
+                allRatingHistories: {},
+                allRatingsLoading: false,
 
                 async init() {
                     // Load player name from cookie
@@ -1098,10 +1172,13 @@ https://oec.world/en/games/tradle"></textarea>
                         if (response.ok) {
                             const data = await response.json();
                             this.ratingHistory = data.history || [];
-                            // Need to wait for DOM to update before rendering chart
+                            // Need to wait for DOM to update and layout before rendering chart
                             await this.$nextTick();
                             if (this.ratingHistory.length > 0) {
-                                this.renderRatingChart();
+                                // Use setTimeout to ensure modal has fully laid out
+                                setTimeout(() => {
+                                    this.renderRatingChart();
+                                }, 50);
                             }
                         }
                     } catch (error) {
@@ -1119,7 +1196,9 @@ https://oec.world/en/games/tradle"></textarea>
 
                     const data = this.ratingHistory;
                     const margin = { top: 20, right: 20, bottom: 30, left: 50 };
-                    const width = container.clientWidth - margin.left - margin.right;
+                    // Use container width with fallback for when layout isn't ready
+                    const containerWidth = container.clientWidth || container.parentElement?.clientWidth || 400;
+                    const width = containerWidth - margin.left - margin.right;
                     const height = 200 - margin.top - margin.bottom;
 
                     const svg = d3.select(container)
@@ -1196,6 +1275,147 @@ https://oec.world/en/games/tradle"></textarea>
                     svg.append('g')
                         .attr('class', 'axis')
                         .call(d3.axisLeft(y).ticks(5));
+                },
+
+                async showRatingsTab() {
+                    this.activeTab = 'ratings';
+                    if (Object.keys(this.allRatingHistories).length === 0 && !this.allRatingsLoading) {
+                        await this.loadAllRatingHistories();
+                    }
+                },
+
+                async loadAllRatingHistories() {
+                    this.allRatingsLoading = true;
+                    this.allRatingHistories = {};
+
+                    try {
+                        const response = await fetch(`${API_BASE}/api/ratings/history`, {
+                            headers: { 'X-Tenant-Key': this.dataId }
+                        });
+                        if (response.ok) {
+                            const data = await response.json();
+                            this.allRatingHistories = data.histories || {};
+                        }
+
+                        // Render chart after data loads
+                        await this.$nextTick();
+                        setTimeout(() => {
+                            this.renderAllRatingsChart();
+                        }, 50);
+                    } catch (error) {
+                        console.error('Error loading rating histories:', error);
+                    }
+
+                    this.allRatingsLoading = false;
+                },
+
+                renderAllRatingsChart() {
+                    const container = document.getElementById('all-ratings-chart');
+                    const legendContainer = document.getElementById('ratings-legend');
+                    if (!container || Object.keys(this.allRatingHistories).length === 0) return;
+
+                    // Clear existing
+                    container.innerHTML = '';
+                    legendContainer.innerHTML = '';
+
+                    const margin = { top: 20, right: 30, bottom: 40, left: 60 };
+                    const containerWidth = container.clientWidth || 600;
+                    const width = containerWidth - margin.left - margin.right;
+                    const height = 350 - margin.top - margin.bottom;
+
+                    // Color palette for players
+                    const colors = ['#0d9488', '#7c3aed', '#dc2626', '#2563eb', '#d97706', '#059669', '#db2777', '#4f46e5'];
+                    const players = Object.keys(this.allRatingHistories);
+                    const colorMap = {};
+                    players.forEach((player, i) => {
+                        colorMap[player] = colors[i % colors.length];
+                    });
+
+                    // Combine all data to find domains
+                    let allRounds = [];
+                    let allRatings = [];
+                    for (const player of players) {
+                        const history = this.allRatingHistories[player];
+                        for (const d of history) {
+                            allRounds.push(d.round);
+                            allRatings.push(d.conservativeRating);
+                        }
+                    }
+
+                    const svg = d3.select(container)
+                        .append('svg')
+                        .attr('width', width + margin.left + margin.right)
+                        .attr('height', height + margin.top + margin.bottom)
+                        .append('g')
+                        .attr('transform', `translate(${margin.left},${margin.top})`);
+
+                    // Scales
+                    const x = d3.scaleLinear()
+                        .domain(d3.extent(allRounds))
+                        .range([0, width]);
+
+                    const yMin = d3.min(allRatings);
+                    const yMax = d3.max(allRatings);
+                    const yPadding = (yMax - yMin) * 0.1;
+
+                    const y = d3.scaleLinear()
+                        .domain([Math.max(0, yMin - yPadding), yMax + yPadding])
+                        .range([height, 0]);
+
+                    // Grid lines
+                    svg.append('g')
+                        .attr('class', 'grid')
+                        .call(d3.axisLeft(y)
+                            .ticks(6)
+                            .tickSize(-width)
+                            .tickFormat('')
+                        );
+
+                    // Draw line for each player
+                    const line = d3.line()
+                        .x(d => x(d.round))
+                        .y(d => y(d.conservativeRating));
+
+                    for (const player of players) {
+                        const history = this.allRatingHistories[player];
+                        svg.append('path')
+                            .datum(history)
+                            .attr('class', 'player-line')
+                            .attr('stroke', colorMap[player])
+                            .attr('d', line);
+                    }
+
+                    // X axis
+                    svg.append('g')
+                        .attr('class', 'axis')
+                        .attr('transform', `translate(0,${height})`)
+                        .call(d3.axisBottom(x)
+                            .ticks(Math.min(10, d3.max(allRounds) - d3.min(allRounds)))
+                            .tickFormat(d => '#' + d)
+                        );
+
+                    // Y axis
+                    svg.append('g')
+                        .attr('class', 'axis')
+                        .call(d3.axisLeft(y).ticks(6));
+
+                    // Y axis label
+                    svg.append('text')
+                        .attr('transform', 'rotate(-90)')
+                        .attr('y', -45)
+                        .attr('x', -height / 2)
+                        .attr('text-anchor', 'middle')
+                        .attr('fill', '#64748b')
+                        .attr('font-size', '0.75rem')
+                        .text('Elo Rating');
+
+                    // Legend
+                    for (const player of players) {
+                        const item = document.createElement('div');
+                        item.className = 'legend-item';
+                        item.innerHTML = `<span class="legend-color" style="background-color: ${colorMap[player]}"></span><span>${player}</span>`;
+                        legendContainer.appendChild(item);
+                    }
                 },
 
                 async submitScore() {

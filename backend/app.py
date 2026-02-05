@@ -12,7 +12,7 @@ from functools import wraps
 
 from bottle import Bottle, request, response, run, static_file, HTTPResponse
 
-from .ratings import update_ratings_for_round, get_all_ratings, get_rating_history
+from .ratings import update_ratings_for_round, get_all_ratings, get_rating_history, get_all_rating_histories
 
 # Configuration
 DB_PATH = os.environ.get('TRADLE_DB', 'tradle.db')
@@ -307,6 +307,18 @@ def get_player_rating_history(tenant_id, player):
 
     response.content_type = 'application/json'
     return {'player': player, 'history': history}
+
+
+@app.route('/api/ratings/history', method='GET')
+@require_tenant
+def get_all_players_rating_history(tenant_id):
+    """Get rating histories for all players."""
+    conn = get_db()
+    histories = get_all_rating_histories(conn, tenant_id)
+    conn.close()
+
+    response.content_type = 'application/json'
+    return {'histories': histories}
 
 
 @app.route('/health')

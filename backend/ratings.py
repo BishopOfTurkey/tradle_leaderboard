@@ -386,3 +386,32 @@ def get_rating_history(conn, tenant_id, player):
             'conservativeRating': row['conservative_rating']
         })
     return history
+
+
+def get_all_rating_histories(conn, tenant_id):
+    """
+    Get rating histories for all players in a tenant (for multi-player chart).
+
+    Returns:
+        Dict mapping player name to list of history entries
+    """
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT player, round, rating, rd, conservative_rating
+        FROM rating_history
+        WHERE tenant_id = ?
+        ORDER BY player ASC, round ASC
+    ''', (tenant_id,))
+
+    histories = {}
+    for row in cursor.fetchall():
+        player = row['player']
+        if player not in histories:
+            histories[player] = []
+        histories[player].append({
+            'round': row['round'],
+            'rating': row['rating'],
+            'rd': row['rd'],
+            'conservativeRating': row['conservative_rating']
+        })
+    return histories
