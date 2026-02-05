@@ -655,6 +655,7 @@ https://oec.world/en/games/tradle"></textarea>
                                     <tr>
                                         <th @click="sortBy('rank')">#</th>
                                         <th @click="sortBy('player')" :class="getSortClass('player')">Player</th>
+                                        <th @click="sortBy('elo')" :class="getSortClass('elo')">Elo</th>
                                         <th @click="sortBy('avgScore')" :class="getSortClass('avgScore')">Avg Score</th>
                                         <th @click="sortBy('totalPoints')" :class="getSortClass('totalPoints')">Points</th>
                                         <th @click="sortBy('winRate')" :class="getSortClass('winRate')">Win %</th>
@@ -667,6 +668,7 @@ https://oec.world/en/games/tradle"></textarea>
                                         <tr @click="selectedPlayer = entry.player">
                                             <td class="rank" :class="{'gold': index === 0, 'silver': index === 1, 'bronze': index === 2}" x-text="index + 1"></td>
                                             <td class="player-name" x-text="entry.player"></td>
+                                            <td class="stat" x-text="entry.elo ?? '-'"></td>
                                             <td class="stat" x-text="entry.avgScore.toFixed(2)"></td>
                                             <td class="stat" x-text="entry.totalPoints"></td>
                                             <td class="stat" x-text="entry.winRate.toFixed(0) + '%'"></td>
@@ -774,6 +776,7 @@ https://oec.world/en/games/tradle"></textarea>
                 sortDirection: 'desc',
                 selectedPlayer: null,
                 activeTab: 'standings',
+                ratings: {},
 
                 async init() {
                     // Load player name from cookie
@@ -823,6 +826,7 @@ https://oec.world/en/games/tradle"></textarea>
                         if (response.ok) {
                             const data = await response.json();
                             this.scores = data.scores || [];
+                            this.ratings = data.ratings || {};
                         } else if (response.status === 401) {
                             this.message = 'Invalid access key. Please check your invite link.';
                             this.messageType = 'error';
@@ -884,8 +888,13 @@ https://oec.world/en/games/tradle"></textarea>
                             }
                         }
 
+                        // Get Elo from ratings (conservative rating = rating - 2*RD)
+                        const playerRating = this.ratings[stats.player];
+                        const elo = playerRating ? Math.floor(playerRating.conservativeRating) : null;
+
                         return {
                             player: stats.player,
+                            elo,
                             avgScore,
                             totalPoints: stats.totalPoints,
                             winRate,
@@ -958,7 +967,7 @@ https://oec.world/en/games/tradle"></textarea>
                         } else if (field === 'player') {
                             this.sortDirection = 'asc'; // Alphabetical
                         } else {
-                            this.sortDirection = 'desc'; // Higher is better for other stats
+                            this.sortDirection = 'desc'; // Higher is better for elo, points, etc.
                         }
                     }
                 },

@@ -76,7 +76,7 @@ backend/
    - Replay all scores in order: `ORDER BY round ASC, created_at ASC`
    - Add CLI entry point in `pyproject.toml`
 
-### Phase 3: Frontend - Elo Column
+### Phase 3: Frontend - Elo Column (COMPLETED)
 
 1. Update `loadScores()` to store `this.ratings` from response
 2. Add "Elo" column to standings table header (~line 656)
